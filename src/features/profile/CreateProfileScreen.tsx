@@ -22,7 +22,7 @@ export default function CreateProfileScreen({ onCreated }: CreateProfileScreenPr
     if (!canSubmit) return;
     setSaving(true);
     try {
-      await profileRepository.save({ firstName: trimmedName, avatar });
+      await profileRepository.save({ firstName: trimmedName, avatar, createdAt: new Date().toISOString() });
       onCreated();
     } finally {
       setSaving(false);

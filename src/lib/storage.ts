@@ -36,7 +36,8 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
     CREATE TABLE IF NOT EXISTS profile (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       firstName TEXT NOT NULL,
-      avatar TEXT NOT NULL
+      avatar TEXT NOT NULL,
+      createdAt TEXT NOT NULL DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS settings (
@@ -46,6 +47,19 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
       simulationReturnRate REAL NOT NULL
     );
   `);
+
+  // Migration : les profils créés avant l'ajout de `createdAt` (Phase 3)
+  // n'ont pas cette colonne sur les installations existantes — on
+  // l'ajoute si besoin puis on backfille avec la date du jour, faute de
+  // mieux (CREATE TABLE IF NOT EXISTS ne modifie pas une table déjà
+  // existante).
+  try {
+    await db.execAsync("ALTER TABLE profile ADD COLUMN createdAt TEXT NOT NULL DEFAULT ''");
+  } catch {
+    // la colonne existe déjà, rien à faire
+  }
+  await db.runAsync("UPDATE profile SET createdAt = ? WHERE createdAt = ''", [new Date().toISOString()]);
+
   return db;
 }
 
@@ -116,16 +130,16 @@ export const habitRepository = {
 export const profileRepository = {
   async get(): Promise<LocalProfile | null> {
     const db = await getDatabase();
-    const row = await db.getFirstAsync<LocalProfile>('SELECT firstName, avatar FROM profile WHERE id = 1');
+    const row = await db.getFirstAsync<LocalProfile>('SELECT firstName, avatar, createdAt FROM profile WHERE id = 1');
     return row ?? null;
   },
 
   async save(profile: LocalProfile): Promise<void> {
     const db = await getDatabase();
     await db.runAsync(
-      `INSERT INTO profile (id, firstName, avatar) VALUES (1, ?, ?)
+      `INSERT INTO profile (id, firstName, avatar, createdAt) VALUES (1, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET firstName = excluded.firstName, avatar = excluded.avatar`,
-      [profile.firstName, profile.avatar]
+      [profile.firstName, profile.avatar, profile.createdAt]
     );
   },
 };

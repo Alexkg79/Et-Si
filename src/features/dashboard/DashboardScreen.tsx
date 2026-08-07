@@ -1,52 +1,92 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Habit } from '../../lib/models';
-import { habitRepository } from '../../lib/storage';
+import { OnboardingScreen } from '../onboarding';
+import { DEFAULT_USER_SETTINGS, Habit, LocalProfile, UserSettings } from '../../lib/models';
+import { habitRepository, profileRepository, settingsRepository } from '../../lib/storage';
+import { yearsSince, computeFutureValue } from '../../lib/simulation';
 import { colors, spacing, typeScale } from '../../theme';
+import GhostWalletCard from './GhostWalletCard';
+import HabitReceiptRow from './HabitReceiptRow';
+import GuiltNotification from './GuiltNotification';
+import EmptyState from './EmptyState';
 
-const FREQUENCY_LABELS: Record<Habit['frequency'], string> = {
-  daily: '/jour',
-  weekly: '/semaine',
-  monthly: '/mois',
-};
-
-// TEMPORAIRE (vérification Phase 2) : affichage brut des habitudes
-// enregistrées par l'onboarding. À remplacer en Phase 3 par la carte
-// "portefeuille fantôme" + la liste type reçu (CLAUDE.md section 6).
 export default function DashboardScreen() {
+  const [loading, setLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [profile, setProfile] = useState<LocalProfile | null>(null);
+  const [settings, setSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS);
   const [habits, setHabits] = useState<Habit[]>([]);
+
+  const refresh = useCallback(async () => {
+    const [profileData, settingsData, habitsData] = await Promise.all([
+      profileRepository.get(),
+      settingsRepository.get(),
+      habitRepository.getAll(),
+    ]);
+    setProfile(profileData);
+    setSettings(settingsData);
+    setHabits(habitsData);
+    setLoading(false);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      let cancelled = false;
-      habitRepository.getAll().then((data) => {
-        if (!cancelled) setHabits(data);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }, [])
+      refresh();
+    }, [refresh])
   );
+
+  if (showOnboarding) {
+    return (
+      <OnboardingScreen
+        onDone={() => {
+          setShowOnboarding(false);
+          refresh();
+        }}
+      />
+    );
+  }
+
+  if (loading || !profile) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.mintDeep} />
+      </View>
+    );
+  }
+
+  const activeHabits = habits.filter((habit) => habit.active);
+  const years = yearsSince(profile.createdAt);
+  const totalValue = computeFutureValue(activeHabits, settings.simulationReturnRate, years);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Accueil</Text>
-      <Text style={styles.body}>Le relevé de tes fuites d'argent arrive ici.</Text>
+      <Text style={styles.greeting}>
+        Salut {profile.firstName} {profile.avatar}
+      </Text>
 
-      <View style={styles.debugSection}>
-        <Text style={styles.debugLabel}>Debug — habitudes en base ({habits.length})</Text>
-        {habits.length === 0 ? (
-          <Text style={styles.debugEmpty}>Aucune habitude enregistrée pour l'instant.</Text>
-        ) : (
-          habits.map((habit) => (
-            <Text key={habit.id} style={styles.debugRow}>
-              {habit.emoji} {habit.name} — {habit.amount.toFixed(2)} € {FREQUENCY_LABELS[habit.frequency]}
-            </Text>
-          ))
-        )}
-      </View>
+      {activeHabits.length === 0 ? (
+        <EmptyState onStartOnboarding={() => setShowOnboarding(true)} />
+      ) : (
+        <>
+          <GhostWalletCard totalValue={totalValue} sinceDateISO={profile.createdAt} />
+
+          <View style={styles.receiptList}>
+            {activeHabits.map((habit) => (
+              <HabitReceiptRow key={habit.id} habit={habit} />
+            ))}
+          </View>
+
+          {settings.guiltModeEnabled ? (
+            <GuiltNotification
+              habits={activeHabits}
+              annualReturnRate={settings.simulationReturnRate}
+              years={settings.simulationYears}
+            />
+          ) : null}
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -59,33 +99,18 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
   },
-  title: {
-    ...typeScale.h1,
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.paper,
+  },
+  greeting: {
+    ...typeScale.h2,
     color: colors.ink,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.lg,
   },
-  body: {
-    ...typeScale.body,
-    color: colors.inkSoft,
-  },
-  debugSection: {
-    marginTop: spacing.xl,
-    borderTopWidth: 1,
-    borderTopColor: colors.paperDim,
-    paddingTop: spacing.md,
-  },
-  debugLabel: {
-    ...typeScale.label,
-    color: colors.coral,
-    marginBottom: spacing.sm,
-  },
-  debugEmpty: {
-    ...typeScale.caption,
-    color: colors.inkSoft,
-  },
-  debugRow: {
-    ...typeScale.amountSmall,
-    color: colors.ink,
-    marginBottom: spacing.xs,
+  receiptList: {
+    marginBottom: spacing.md,
   },
 });

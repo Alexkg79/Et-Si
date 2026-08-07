@@ -19,6 +19,7 @@ export interface Habit {
 export interface LocalProfile {
   firstName: string;
   avatar: string;
+  createdAt: string; // ISO 8601 — sert de point de départ au calcul du portefeuille fantôme (CLAUDE.md §6)
 }
 
 export interface UserSettings {
