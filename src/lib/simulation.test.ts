@@ -1,4 +1,10 @@
-import { computeAnnualCost, computeFutureValue, computeMonthlyAmount, yearsSince } from './simulation';
+import {
+  computeAnnualCost,
+  computeFutureValue,
+  computeMonthlyAmount,
+  computeReducedFutureValue,
+  yearsSince,
+} from './simulation';
 
 describe('computeAnnualCost', () => {
   it('multiplie par 365 pour une fréquence quotidienne', () => {
@@ -77,6 +83,33 @@ describe('computeFutureValue', () => {
     const result = computeFutureValue(habits, 0.07, 0.5);
     expect(result).toBeGreaterThan(0);
     expect(Number.isFinite(result)).toBe(true);
+  });
+});
+
+describe('computeReducedFutureValue', () => {
+  const habits = [{ amount: 100, frequency: 'monthly' as const }];
+
+  it('avec une réduction de 0%, donne un résultat identique à computeFutureValue (comportement inchangé)', () => {
+    expect(computeReducedFutureValue(habits, 0.07, 20, 0)).toBeCloseTo(computeFutureValue(habits, 0.07, 20));
+  });
+
+  it("avec une réduction de 100% (j'arrête complètement), vaut 0", () => {
+    expect(computeReducedFutureValue(habits, 0.07, 20, 1)).toBe(0);
+  });
+
+  it('avec une réduction de 50%, vaut la moitié de la valeur non réduite', () => {
+    const full = computeFutureValue(habits, 0.07, 20);
+    expect(computeReducedFutureValue(habits, 0.07, 20, 0.5)).toBeCloseTo(full / 2);
+  });
+
+  it('avec une réduction de 25%, vaut 75% de la valeur non réduite', () => {
+    const full = computeFutureValue(habits, 0.07, 20);
+    expect(computeReducedFutureValue(habits, 0.07, 20, 0.25)).toBeCloseTo(full * 0.75);
+  });
+
+  it('vaut 0 si le total mensuel est 0, quel que soit le taux de réduction', () => {
+    const zeroHabits = [{ amount: 0, frequency: 'monthly' as const }];
+    expect(computeReducedFutureValue(zeroHabits, 0.07, 20, 0.5)).toBe(0);
   });
 });
 

@@ -5,10 +5,10 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, Vie
 import Slider from '@react-native-community/slider';
 
 import { EmptyState, AnimatedAmount } from '../dashboard';
-import { formatEuro } from '../../lib/format';
+import { formatEuro, FREQUENCY_SUFFIX } from '../../lib/format';
 import { FRIENDLY_ERROR_MESSAGE } from '../../lib/errors';
 import { getEquivalence } from '../../lib/equivalences';
-import { computeFutureValue } from '../../lib/simulation';
+import { computeFutureValue, computeMonthlyAmount, computeReducedFutureValue } from '../../lib/simulation';
 import { DEFAULT_USER_SETTINGS, Habit, UserSettings } from '../../lib/models';
 import { habitRepository, settingsRepository } from '../../lib/storage';
 import { colors, radii, spacing, typeScale } from '../../theme';
@@ -17,7 +17,17 @@ import SimulationChip from './SimulationChip';
 
 const MIN_YEARS = 5;
 const MAX_YEARS = 40;
+const MIN_REDUCTION = 0;
+const MAX_REDUCTION = 1;
+const REDUCTION_STEP = 0.01;
 const ALL_KEY = 'all';
+
+const REDUCTION_PRESETS: { label: string; value: number }[] = [
+  { label: '-25 %', value: 0.25 },
+  { label: '-50 %', value: 0.5 },
+  { label: '-75 %', value: 0.75 },
+  { label: "J'arrête complètement", value: 1 },
+];
 
 export default function SimulationScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
@@ -28,6 +38,7 @@ export default function SimulationScreen() {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS);
   const [selectedKey, setSelectedKey] = useState<string>(ALL_KEY);
   const [years, setYears] = useState(DEFAULT_USER_SETTINGS.simulationYears);
+  const [reductionRate, setReductionRate] = useState(0);
 
   const load = useCallback(() => {
     Promise.all([habitRepository.getAll(), settingsRepository.get()])
@@ -117,8 +128,24 @@ export default function SimulationScreen() {
   }
 
   const selectedHabits = selectedKey === ALL_KEY ? activeHabits : activeHabits.filter((habit) => habit.id === selectedKey);
-  const projectedValue = computeFutureValue(selectedHabits, settings.simulationReturnRate, years);
+  // "Si tu continues comme ça" : valeur pleine, inchangée par le taux de
+  // réduction — c'est la référence à laquelle on compare.
+  const currentValue = computeFutureValue(selectedHabits, settings.simulationReturnRate, years);
+  // "Si tu réduis de X%" : ce qu'il resterait comme fuite projetée une
+  // fois la réduction appliquée (0% => identique à currentValue).
+  const reducedValue = computeReducedFutureValue(selectedHabits, settings.simulationReturnRate, years, reductionRate);
+  const savedAmount = currentValue - reducedValue;
   const returnRatePercent = Math.round(settings.simulationReturnRate * 100);
+  const reductionPercent = Math.round(reductionRate * 100);
+
+  // Traduction concrète du taux de réduction dans l'unité saisie par
+  // l'utilisateur : montant brut/fréquence pour une habitude unique,
+  // total mensualisé (computeMonthlyAmount) quand plusieurs habitudes
+  // sont cumulées, pour que l'addition entre fréquences différentes ait
+  // un sens.
+  const singleHabit = selectedKey === ALL_KEY ? null : selectedHabits[0];
+  const originalMonthlyTotal = selectedHabits.reduce((sum, habit) => sum + computeMonthlyAmount(habit), 0);
+  const reducedMonthlyTotal = originalMonthlyTotal * (1 - reductionRate);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -137,11 +164,28 @@ export default function SimulationScreen() {
       </ScrollView>
 
       <View style={styles.resultCard}>
-        <Text style={styles.resultSubtitle}>Sur {years} ans, ça donnerait</Text>
-        <AnimatedAmount value={projectedValue} style={styles.resultAmount}>
-          {formatEuro(projectedValue)}
-        </AnimatedAmount>
-        <Text style={styles.equivalence}>Soit à peu près : {getEquivalence(projectedValue)}</Text>
+        <Text style={styles.resultSubtitle}>Sur {years} ans</Text>
+
+        <View style={styles.comparisonRow}>
+          <Text style={styles.comparisonLabel}>Si tu continues comme ça</Text>
+          <Text style={styles.comparisonValue}>{formatEuro(currentValue)}</Text>
+        </View>
+        <View style={styles.comparisonRow}>
+          <Text style={styles.comparisonLabel}>Si tu réduis de {reductionPercent} %</Text>
+          <Text style={styles.comparisonValue}>{formatEuro(reducedValue)}</Text>
+        </View>
+
+        <View style={styles.diffBlock}>
+          <Text style={styles.diffLabel}>Ce que tu récupérerais</Text>
+          <AnimatedAmount value={savedAmount} style={styles.resultAmount}>
+            {formatEuro(savedAmount)}
+          </AnimatedAmount>
+          <Text style={styles.equivalence}>
+            {savedAmount > 0
+              ? `Soit à peu près : ${getEquivalence(savedAmount)}`
+              : 'Baisse le curseur ci-dessous pour voir ce que ça représenterait.'}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.sliderSection}>
@@ -161,6 +205,45 @@ export default function SimulationScreen() {
           maximumTrackTintColor={colors.paperDim}
           thumbTintColor={colors.mintDeep}
         />
+      </View>
+
+      <View style={styles.sliderSection}>
+        <Text style={styles.sliderSectionLabel}>Taux de réduction</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsRow}>
+          {REDUCTION_PRESETS.map((preset) => (
+            <SimulationChip
+              key={preset.label}
+              label={preset.label}
+              selected={reductionRate === preset.value}
+              onPress={() => setReductionRate(preset.value)}
+            />
+          ))}
+        </ScrollView>
+        <View style={styles.sliderLabels}>
+          <Text style={styles.sliderLabel}>0 %</Text>
+          <Text style={styles.sliderYears}>{reductionPercent} %</Text>
+          <Text style={styles.sliderLabel}>100 %</Text>
+        </View>
+        <Slider
+          minimumValue={MIN_REDUCTION}
+          maximumValue={MAX_REDUCTION}
+          step={REDUCTION_STEP}
+          value={reductionRate}
+          onValueChange={setReductionRate}
+          minimumTrackTintColor={colors.mint}
+          maximumTrackTintColor={colors.paperDim}
+          thumbTintColor={colors.mintDeep}
+        />
+        <Text style={styles.reductionHint}>
+          {singleHabit
+            ? `Ça reviendrait à ${formatEuro(singleHabit.amount * (1 - reductionRate), 2)} ${
+                FREQUENCY_SUFFIX[singleHabit.frequency]
+              } au lieu de ${formatEuro(singleHabit.amount, 2)} ${FREQUENCY_SUFFIX[singleHabit.frequency]}`
+            : `Aujourd'hui tu dépenses environ ${formatEuro(
+                originalMonthlyTotal,
+                2
+              )}/mois sur ces fuites, ça reviendrait à ${formatEuro(reducedMonthlyTotal, 2)}/mois.`}
+        </Text>
       </View>
 
       <View style={styles.guiltRow}>
@@ -241,6 +324,31 @@ const styles = StyleSheet.create({
   resultSubtitle: {
     ...typeScale.label,
     color: colors.mint,
+    marginBottom: spacing.sm,
+  },
+  comparisonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    borderBottomWidth: 1,
+    borderStyle: 'dashed',
+    borderBottomColor: colors.inkSoft,
+  },
+  comparisonLabel: {
+    ...typeScale.body,
+    color: colors.paperDim,
+  },
+  comparisonValue: {
+    ...typeScale.amountSmall,
+    color: colors.paperDim,
+  },
+  diffBlock: {
+    marginTop: spacing.md,
+  },
+  diffLabel: {
+    ...typeScale.label,
+    color: colors.mint,
     marginBottom: spacing.xs,
   },
   resultAmount: {
@@ -255,6 +363,11 @@ const styles = StyleSheet.create({
   sliderSection: {
     marginBottom: spacing.lg,
   },
+  sliderSectionLabel: {
+    ...typeScale.bodyMedium,
+    color: colors.ink,
+    marginBottom: spacing.sm,
+  },
   sliderLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -267,6 +380,11 @@ const styles = StyleSheet.create({
   sliderYears: {
     ...typeScale.amountSmall,
     color: colors.ink,
+  },
+  reductionHint: {
+    ...typeScale.caption,
+    color: colors.inkSoft,
+    marginTop: spacing.sm,
   },
   guiltRow: {
     flexDirection: 'row',

@@ -44,6 +44,23 @@ export function computeFutureValue(habits: AmountFrequency[], annualReturnRate: 
   return monthlyTotal * ((Math.pow(1 + r, n) - 1) / r);
 }
 
+// Valeur future de ce qu'il resterait comme fuite si l'utilisateur
+// réduisait sa dépense de `reductionRate` (0 à 1) plutôt que de l'arrêter
+// nette (Simulation, écran "Et si...?"). La formule des intérêts
+// composés est linéaire en montant mensuel investi, donc réduire le
+// coût de X% revient à multiplier la valeur future par (1 - X%) — pas
+// besoin de dupliquer la logique de computeFutureValue.
+// reductionRate=0 => identique à computeFutureValue (aucun changement) ;
+// reductionRate=1 ("j'arrête complètement") => 0, plus aucune fuite à projeter.
+export function computeReducedFutureValue(
+  habits: AmountFrequency[],
+  annualReturnRate: number,
+  years: number,
+  reductionRate: number
+): number {
+  return computeFutureValue(habits, annualReturnRate, years) * (1 - reductionRate);
+}
+
 // Nombre d'années (fractionnaire) écoulées entre une date ISO et
 // maintenant — utilisé par l'écran Accueil pour dériver la durée du
 // portefeuille fantôme depuis la date de création du profil.

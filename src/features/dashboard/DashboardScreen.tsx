@@ -7,7 +7,7 @@ import { EditHabitScreen } from '../habits';
 import { FRIENDLY_ERROR_MESSAGE } from '../../lib/errors';
 import { DEFAULT_USER_SETTINGS, Habit, LocalProfile, UserSettings } from '../../lib/models';
 import { habitRepository, profileRepository, settingsRepository } from '../../lib/storage';
-import { yearsSince, computeFutureValue } from '../../lib/simulation';
+import { yearsSince, computeAnnualCost, computeFutureValue } from '../../lib/simulation';
 import { colors, radii, spacing, typeScale } from '../../theme';
 import GhostWalletCard from './GhostWalletCard';
 import HabitReceiptRow from './HabitReceiptRow';
@@ -92,7 +92,11 @@ export default function DashboardScreen() {
 
   if (!profile) return null;
 
-  const activeHabits = habits.filter((habit) => habit.active);
+  // Tri par coût annualisé décroissant : la plus grosse fuite en tête,
+  // pour le diagnostic (CLAUDE.md §6, écran Accueil).
+  const activeHabits = habits
+    .filter((habit) => habit.active)
+    .sort((a, b) => computeAnnualCost(b) - computeAnnualCost(a));
   const years = yearsSince(profile.createdAt);
   const totalValue = computeFutureValue(activeHabits, settings.simulationReturnRate, years);
 
@@ -114,8 +118,13 @@ export default function DashboardScreen() {
           <GhostWalletCard totalValue={totalValue} sinceDateISO={profile.createdAt} />
 
           <View style={styles.receiptList}>
-            {activeHabits.map((habit) => (
-              <HabitReceiptRow key={habit.id} habit={habit} onPress={() => setEditingHabit(habit)} />
+            {activeHabits.map((habit, index) => (
+              <HabitReceiptRow
+                key={habit.id}
+                habit={habit}
+                isTopHabit={index === 0}
+                onPress={() => setEditingHabit(habit)}
+              />
             ))}
           </View>
 
