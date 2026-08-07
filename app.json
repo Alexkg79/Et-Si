@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "et-si-tmp",
-    "slug": "et-si-tmp",
+    "name": "Et Si",
+    "slug": "et-si",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,6 +20,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-font",
+      "expo-splash-screen",
+      "expo-sqlite"
+    ]
   }
 }
