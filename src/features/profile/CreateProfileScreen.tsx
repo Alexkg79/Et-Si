@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FRIENDLY_ERROR_MESSAGE } from '../../lib/errors';
 import { profileRepository } from '../../lib/storage';
 import { colors, radii, spacing, typeScale } from '../../theme';
-
-const AVATAR_OPTIONS = ['😎', '🦊', '🐸', '🐙', '🦄', '🐼', '🦁', '🐧', '🐢', '🌵'];
+import AvatarGrid, { AVATAR_OPTIONS } from './AvatarGrid';
+import NameInput from './NameInput';
 
 interface CreateProfileScreenProps {
   onCreated: () => void;
@@ -38,32 +38,13 @@ export default function CreateProfileScreen({ onCreated }: CreateProfileScreenPr
     <View style={styles.container}>
       <Text style={styles.title}>Bienvenue 👋</Text>
 
-      <Text style={styles.label}>Comment on t'appelle ?</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Ton prénom"
-        placeholderTextColor={colors.inkSoft}
-        value={firstName}
-        onChangeText={setFirstName}
-        autoCapitalize="words"
-        autoCorrect={false}
-        maxLength={30}
-      />
+      <View style={styles.field}>
+        <NameInput label="Comment on t'appelle ?" value={firstName} onChangeText={setFirstName} />
+      </View>
 
-      <Text style={styles.label}>Choisis ton avatar</Text>
-      <View style={styles.avatarGrid}>
-        {AVATAR_OPTIONS.map((emoji) => {
-          const selected = emoji === avatar;
-          return (
-            <Pressable
-              key={emoji}
-              onPress={() => setAvatar(emoji)}
-              style={[styles.avatarCell, selected && styles.avatarCellSelected]}
-            >
-              <Text style={styles.avatarEmoji}>{emoji}</Text>
-            </Pressable>
-          );
-        })}
+      <View style={styles.field}>
+        <Text style={styles.label}>Choisis ton avatar</Text>
+        <AvatarGrid value={avatar} onChange={setAvatar} />
       </View>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -93,42 +74,19 @@ const styles = StyleSheet.create({
     color: colors.ink,
     marginBottom: spacing.lg,
   },
+  field: {
+    marginBottom: spacing.xl,
+  },
   label: {
     ...typeScale.label,
     color: colors.inkSoft,
     marginBottom: spacing.sm,
   },
-  input: {
-    ...typeScale.body,
+  errorText: {
+    ...typeScale.caption,
     color: colors.ink,
-    backgroundColor: colors.paperDim,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  avatarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
-  },
-  avatarCell: {
-    width: 56,
-    height: 56,
-    borderRadius: radii.md,
-    backgroundColor: colors.paperDim,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  avatarCellSelected: {
-    borderColor: colors.mintDeep,
-    backgroundColor: colors.mint,
-  },
-  avatarEmoji: {
-    fontSize: 28,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   submitButton: {
     backgroundColor: colors.mint,
@@ -138,12 +96,6 @@ const styles = StyleSheet.create({
   },
   submitButtonDisabled: {
     backgroundColor: colors.paperDim,
-  },
-  errorText: {
-    ...typeScale.caption,
-    color: colors.ink,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
   },
   submitLabel: {
     ...typeScale.bodyMedium,
