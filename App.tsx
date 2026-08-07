@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 
-import RootNavigator from './src/navigation/RootNavigator';
+import RootGate from './src/navigation/RootGate';
 import { useAppFonts, colors } from './src/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -25,7 +25,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <View style={styles.container}>
-        <RootNavigator />
+        <RootGate />
         <StatusBar style="dark" />
       </View>
     </SafeAreaProvider>
