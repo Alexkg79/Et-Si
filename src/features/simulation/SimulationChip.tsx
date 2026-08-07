@@ -10,7 +10,7 @@ interface SimulationChipProps {
 
 export default function SimulationChip({ label, selected, onPress }: SimulationChipProps) {
   return (
-    <Pressable onPress={onPress} style={[styles.chip, selected && styles.chipSelected]}>
+    <Pressable onPress={onPress} style={[styles.chip, selected && styles.chipSelected]} hitSlop={6}>
       <Text style={[styles.label, selected && styles.labelSelected]} numberOfLines={1}>
         {label}
       </Text>

@@ -5,3 +5,4 @@ export * from './amount';
 export * from './simulation';
 export * from './format';
 export * from './equivalences';
+export * from './useReduceMotion';

@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   },
   pill: {
     flex: 1,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     borderRadius: radii.pill,
     backgroundColor: colors.paperDim,
     alignItems: 'center',

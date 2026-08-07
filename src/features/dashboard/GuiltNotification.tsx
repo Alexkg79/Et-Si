@@ -25,7 +25,7 @@ export default function GuiltNotification({ habits, annualReturnRate, years }: G
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Mode culpabilité</Text>
+      <Text style={styles.label}>🔥 Mode culpabilité</Text>
       <Text style={styles.text}>
         {habit.emoji} {habit.name} ? Dans {years} ans, ça aurait pu valoir {formatEuro(projected)}.
       </Text>
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typeScale.label,
-    color: colors.coral,
+    color: colors.ink,
     marginBottom: spacing.xs,
   },
   text: {

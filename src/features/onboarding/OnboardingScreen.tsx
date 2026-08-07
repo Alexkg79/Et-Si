@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { parseAmountInput } from '../../lib/amount';
+import { FRIENDLY_ERROR_MESSAGE } from '../../lib/errors';
 import { generateId } from '../../lib/id';
 import { Habit, HabitFrequency } from '../../lib/models';
 import { habitRepository } from '../../lib/storage';
@@ -21,6 +22,7 @@ interface OnboardingScreenProps {
 export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
   const [lines, setLines] = useState<CategoryLine[]>(buildInitialCategoryLines);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const updateLine = (key: string, changes: Partial<CategoryLine>) => {
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...changes } : line)));
@@ -61,25 +63,24 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    setError(null);
     setSaving(true);
     try {
       const now = new Date().toISOString();
-      await Promise.all(
-        validLines.map((line) => {
-          const habit: Habit = {
-            id: generateId(),
-            emoji: line.emoji,
-            name: line.name.trim(),
-            category: line.categoryId,
-            amount: parseAmountInput(line.amount),
-            frequency: line.frequency as HabitFrequency,
-            createdAt: now,
-            active: true,
-          };
-          return habitRepository.create(habit);
-        })
-      );
+      const habitsToCreate: Habit[] = validLines.map((line) => ({
+        id: generateId(),
+        emoji: line.emoji,
+        name: line.name.trim(),
+        category: line.categoryId,
+        amount: parseAmountInput(line.amount),
+        frequency: line.frequency as HabitFrequency,
+        createdAt: now,
+        active: true,
+      }));
+      await habitRepository.createMany(habitsToCreate);
       onDone();
+    } catch {
+      setError(FRIENDLY_ERROR_MESSAGE);
     } finally {
       setSaving(false);
     }
@@ -119,6 +120,7 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
       </ScrollView>
 
       <View style={styles.footer}>
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <Pressable
           onPress={handleSubmit}
           disabled={!canSubmit}
@@ -168,6 +170,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
     borderTopWidth: 1,
     borderTopColor: colors.paperDim,
+  },
+  errorText: {
+    ...typeScale.caption,
+    color: colors.ink,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   submitButton: {
     backgroundColor: colors.mint,

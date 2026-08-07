@@ -1,13 +1,14 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { OnboardingScreen } from '../onboarding';
 import { EditHabitScreen } from '../habits';
+import { FRIENDLY_ERROR_MESSAGE } from '../../lib/errors';
 import { DEFAULT_USER_SETTINGS, Habit, LocalProfile, UserSettings } from '../../lib/models';
 import { habitRepository, profileRepository, settingsRepository } from '../../lib/storage';
 import { yearsSince, computeFutureValue } from '../../lib/simulation';
-import { colors, spacing, typeScale } from '../../theme';
+import { colors, radii, spacing, typeScale } from '../../theme';
 import GhostWalletCard from './GhostWalletCard';
 import HabitReceiptRow from './HabitReceiptRow';
 import GuiltNotification from './GuiltNotification';
@@ -15,6 +16,7 @@ import EmptyState from './EmptyState';
 
 export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [profile, setProfile] = useState<LocalProfile | null>(null);
@@ -22,15 +24,21 @@ export default function DashboardScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
 
   const refresh = useCallback(async () => {
-    const [profileData, settingsData, habitsData] = await Promise.all([
-      profileRepository.get(),
-      settingsRepository.get(),
-      habitRepository.getAll(),
-    ]);
-    setProfile(profileData);
-    setSettings(settingsData);
-    setHabits(habitsData);
-    setLoading(false);
+    try {
+      const [profileData, settingsData, habitsData] = await Promise.all([
+        profileRepository.get(),
+        settingsRepository.get(),
+        habitRepository.getAll(),
+      ]);
+      setProfile(profileData);
+      setSettings(settingsData);
+      setHabits(habitsData);
+      setError(null);
+    } catch {
+      setError(FRIENDLY_ERROR_MESSAGE);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useFocusEffect(
@@ -63,13 +71,26 @@ export default function DashboardScreen() {
     );
   }
 
-  if (loading || !profile) {
+  if (loading) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.mintDeep} />
       </View>
     );
   }
+
+  if (error && !profile) {
+    return (
+      <View style={styles.loading}>
+        <Text style={styles.errorText}>{error}</Text>
+        <Pressable onPress={refresh} style={styles.retryButton}>
+          <Text style={styles.retryLabel}>Réessayer</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (!profile) return null;
 
   const activeHabits = habits.filter((habit) => habit.active);
   const years = yearsSince(profile.createdAt);
@@ -124,6 +145,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.paper,
+    padding: spacing.lg,
+  },
+  errorText: {
+    ...typeScale.body,
+    color: colors.ink,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  retryButton: {
+    backgroundColor: colors.mint,
+    borderRadius: radii.pill,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+  },
+  retryLabel: {
+    ...typeScale.bodyMedium,
+    color: colors.ink,
   },
   greeting: {
     ...typeScale.h2,

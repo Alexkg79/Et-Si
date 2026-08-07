@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { parseAmountInput } from '../../lib/amount';
+import { FRIENDLY_ERROR_MESSAGE } from '../../lib/errors';
 import { Habit, HabitFrequency } from '../../lib/models';
 import { habitRepository } from '../../lib/storage';
 import { colors, radii, spacing, typeScale } from '../../theme';
@@ -21,6 +22,7 @@ export default function EditHabitScreen({ habit, onDone, onCancel }: EditHabitSc
   const [frequency, setFrequency] = useState<HabitFrequency | null>(habit.frequency);
   const [saving, setSaving] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState>('idle');
+  const [error, setError] = useState<string | null>(null);
 
   const isCustom = habit.category === CUSTOM_CATEGORY_ID;
   const canSave =
@@ -28,6 +30,7 @@ export default function EditHabitScreen({ habit, onDone, onCancel }: EditHabitSc
 
   const handleSave = async () => {
     if (!canSave || !frequency) return;
+    setError(null);
     setSaving(true);
     try {
       await habitRepository.update({
@@ -37,6 +40,8 @@ export default function EditHabitScreen({ habit, onDone, onCancel }: EditHabitSc
         frequency,
       });
       onDone();
+    } catch {
+      setError(FRIENDLY_ERROR_MESSAGE);
     } finally {
       setSaving(false);
     }
@@ -47,10 +52,13 @@ export default function EditHabitScreen({ habit, onDone, onCancel }: EditHabitSc
       setConfirmState('confirmingDelete');
       return;
     }
+    setError(null);
     setSaving(true);
     try {
       await habitRepository.remove(habit.id);
       onDone();
+    } catch {
+      setError(FRIENDLY_ERROR_MESSAGE);
     } finally {
       setSaving(false);
     }
@@ -59,7 +67,7 @@ export default function EditHabitScreen({ habit, onDone, onCancel }: EditHabitSc
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Pressable onPress={onCancel} hitSlop={8}>
+        <Pressable onPress={onCancel} hitSlop={16}>
           <Text style={styles.backLabel}>‹ Retour</Text>
         </Pressable>
 
@@ -80,6 +88,7 @@ export default function EditHabitScreen({ habit, onDone, onCancel }: EditHabitSc
       </ScrollView>
 
       <View style={styles.footer}>
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {confirmState === 'confirmingDelete' ? (
           <View style={styles.confirmRow}>
             <Text style={styles.confirmText}>Confirmer la suppression ?</Text>
@@ -138,6 +147,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.paperDim,
   },
+  errorText: {
+    ...typeScale.caption,
+    color: colors.ink,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
   actionsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -153,7 +168,7 @@ const styles = StyleSheet.create({
   },
   deleteLabel: {
     ...typeScale.bodyMedium,
-    color: colors.coral,
+    color: colors.ink,
   },
   saveButton: {
     flex: 1,

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { parseAmountInput } from '../../lib/amount';
+import { FRIENDLY_ERROR_MESSAGE } from '../../lib/errors';
 import { generateId } from '../../lib/id';
 import { Habit, HabitFrequency } from '../../lib/models';
 import { habitRepository } from '../../lib/storage';
@@ -22,9 +23,11 @@ export default function AddHabitScreen() {
   const [lines, setLines] = useState<CategoryLine[]>(buildInitialCategoryLines);
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const selectLine = (key: string) => {
     setSavedMessage(null);
+    setError(null);
     setLines((prev) =>
       prev.map((line) => ({
         ...line,
@@ -35,11 +38,13 @@ export default function AddHabitScreen() {
 
   const updateLine = (key: string, changes: Partial<CategoryLine>) => {
     setSavedMessage(null);
+    setError(null);
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...changes } : line)));
   };
 
   const addCustomCategory = () => {
     setSavedMessage(null);
+    setError(null);
     setLines((prev) => {
       const existingCustom = prev.find((line) => line.isCustom);
       if (existingCustom) {
@@ -75,6 +80,7 @@ export default function AddHabitScreen() {
 
   const handleSubmit = async () => {
     if (!canSubmit || !selected) return;
+    setError(null);
     setSaving(true);
     try {
       const habit: Habit = {
@@ -89,7 +95,9 @@ export default function AddHabitScreen() {
       };
       await habitRepository.create(habit);
       setLines(buildInitialCategoryLines());
-      setSavedMessage(`${habit.emoji} ${habit.name} ajoutée — direction l'onglet Accueil pour la voir.`);
+      setSavedMessage(`✓ ${habit.emoji} ${habit.name} ajoutée — direction l'onglet Accueil pour la voir.`);
+    } catch {
+      setError(FRIENDLY_ERROR_MESSAGE);
     } finally {
       setSaving(false);
     }
@@ -126,6 +134,7 @@ export default function AddHabitScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <Pressable
           onPress={handleSubmit}
           disabled={!canSubmit}
@@ -172,7 +181,7 @@ const styles = StyleSheet.create({
   },
   savedMessage: {
     ...typeScale.caption,
-    color: colors.mintDeep,
+    color: colors.ink,
     marginTop: spacing.md,
     textAlign: 'center',
   },
@@ -181,6 +190,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
     borderTopWidth: 1,
     borderTopColor: colors.paperDim,
+  },
+  errorText: {
+    ...typeScale.caption,
+    color: colors.ink,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   submitButton: {
     backgroundColor: colors.mint,

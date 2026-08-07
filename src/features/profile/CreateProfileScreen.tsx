@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { FRIENDLY_ERROR_MESSAGE } from '../../lib/errors';
 import { profileRepository } from '../../lib/storage';
 import { colors, radii, spacing, typeScale } from '../../theme';
 
@@ -14,16 +15,20 @@ export default function CreateProfileScreen({ onCreated }: CreateProfileScreenPr
   const [firstName, setFirstName] = useState('');
   const [avatar, setAvatar] = useState(AVATAR_OPTIONS[0]);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const trimmedName = firstName.trim();
   const canSubmit = trimmedName.length > 0 && !saving;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    setError(null);
     setSaving(true);
     try {
       await profileRepository.save({ firstName: trimmedName, avatar, createdAt: new Date().toISOString() });
       onCreated();
+    } catch {
+      setError(FRIENDLY_ERROR_MESSAGE);
     } finally {
       setSaving(false);
     }
@@ -60,6 +65,8 @@ export default function CreateProfileScreen({ onCreated }: CreateProfileScreenPr
           );
         })}
       </View>
+
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <Pressable
         onPress={handleSubmit}
@@ -131,6 +138,12 @@ const styles = StyleSheet.create({
   },
   submitButtonDisabled: {
     backgroundColor: colors.paperDim,
+  },
+  errorText: {
+    ...typeScale.caption,
+    color: colors.ink,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   submitLabel: {
     ...typeScale.bodyMedium,

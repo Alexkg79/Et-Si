@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Slider from '@react-native-community/slider';
 
-import { EmptyState } from '../dashboard';
+import { EmptyState, AnimatedAmount } from '../dashboard';
 import { formatEuro } from '../../lib/format';
+import { FRIENDLY_ERROR_MESSAGE } from '../../lib/errors';
 import { getEquivalence } from '../../lib/equivalences';
 import { computeFutureValue } from '../../lib/simulation';
 import { DEFAULT_USER_SETTINGS, Habit, UserSettings } from '../../lib/models';
@@ -21,16 +22,16 @@ const ALL_KEY = 'all';
 export default function SimulationScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS);
   const [selectedKey, setSelectedKey] = useState<string>(ALL_KEY);
   const [years, setYears] = useState(DEFAULT_USER_SETTINGS.simulationYears);
 
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      Promise.all([habitRepository.getAll(), settingsRepository.get()]).then(([habitsData, settingsData]) => {
-        if (cancelled) return;
+  const load = useCallback(() => {
+    Promise.all([habitRepository.getAll(), settingsRepository.get()])
+      .then(([habitsData, settingsData]) => {
         setHabits(habitsData);
         setSettings(settingsData);
         setYears(settingsData.simulationYears);
@@ -39,31 +40,62 @@ export default function SimulationScreen() {
           const stillExists = habitsData.some((habit) => habit.id === current && habit.active);
           return stillExists ? current : ALL_KEY;
         });
-        setLoading(false);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }, [])
+        setLoadError(null);
+      })
+      .catch(() => setLoadError(FRIENDLY_ERROR_MESSAGE))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
   );
 
   const handleYearsCommit = async (value: number) => {
     const rounded = Math.round(value);
     const updated: UserSettings = { ...settings, simulationYears: rounded };
     setSettings(updated);
-    await settingsRepository.save(updated);
+    try {
+      await settingsRepository.save(updated);
+      setSaveError(null);
+    } catch {
+      setSaveError(FRIENDLY_ERROR_MESSAGE);
+    }
   };
 
   const handleToggleGuiltMode = async (value: boolean) => {
     const updated: UserSettings = { ...settings, guiltModeEnabled: value };
     setSettings(updated);
-    await settingsRepository.save(updated);
+    try {
+      await settingsRepository.save(updated);
+      setSaveError(null);
+    } catch {
+      setSaveError(FRIENDLY_ERROR_MESSAGE);
+    }
   };
 
   if (loading) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.mintDeep} />
+      </View>
+    );
+  }
+
+  if (loadError && habits.length === 0) {
+    return (
+      <View style={styles.loading}>
+        <Text style={styles.errorText}>{loadError}</Text>
+        <Pressable
+          onPress={() => {
+            setLoading(true);
+            load();
+          }}
+          style={styles.retryButton}
+        >
+          <Text style={styles.retryLabel}>Réessayer</Text>
+        </Pressable>
       </View>
     );
   }
@@ -106,7 +138,9 @@ export default function SimulationScreen() {
 
       <View style={styles.resultCard}>
         <Text style={styles.resultSubtitle}>Sur {years} ans, ça donnerait</Text>
-        <Text style={styles.resultAmount}>{formatEuro(projectedValue)}</Text>
+        <AnimatedAmount value={projectedValue} style={styles.resultAmount}>
+          {formatEuro(projectedValue)}
+        </AnimatedAmount>
         <Text style={styles.equivalence}>Soit à peu près : {getEquivalence(projectedValue)}</Text>
       </View>
 
@@ -142,6 +176,8 @@ export default function SimulationScreen() {
         />
       </View>
 
+      {saveError ? <Text style={styles.saveErrorText}>{saveError}</Text> : null}
+
       <Text style={styles.disclaimer}>
         Simulation basée sur un rendement de {returnRatePercent} %/an. À visée humoristique, pas un conseil
         financier.
@@ -160,6 +196,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.paper,
+    padding: spacing.lg,
+  },
+  errorText: {
+    ...typeScale.body,
+    color: colors.ink,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  retryButton: {
+    backgroundColor: colors.mint,
+    borderRadius: radii.pill,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+  },
+  retryLabel: {
+    ...typeScale.bodyMedium,
+    color: colors.ink,
+  },
+  saveErrorText: {
+    ...typeScale.caption,
+    color: colors.ink,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   content: {
     padding: spacing.lg,

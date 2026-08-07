@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { formatEuro } from '../../lib/format';
 import { colors, radii, spacing, typeScale } from '../../theme';
+import AnimatedAmount from './AnimatedAmount';
 
 interface GhostWalletCardProps {
   totalValue: number;
@@ -18,7 +19,9 @@ export default function GhostWalletCard({ totalValue, sinceDateISO }: GhostWalle
   return (
     <View style={styles.card}>
       <Text style={styles.label}>Portefeuille fantôme</Text>
-      <Text style={styles.amount}>{formatEuro(totalValue)}</Text>
+      <AnimatedAmount value={totalValue} style={styles.amount}>
+        {formatEuro(totalValue)}
+      </AnimatedAmount>
       <Text style={styles.subtitle}>si t'avais tout investi depuis le {sinceLabel}</Text>
     </View>
   );

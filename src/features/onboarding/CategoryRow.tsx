@@ -36,7 +36,7 @@ export default function CategoryRow({
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={onToggle} style={styles.header}>
+      <Pressable onPress={onToggle} style={styles.header} hitSlop={12}>
         <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
           {checked ? <Text style={styles.checkmark}>✓</Text> : null}
         </View>
@@ -53,7 +53,7 @@ export default function CategoryRow({
           <Text style={styles.name}>{name}</Text>
         )}
         {isCustom ? (
-          <Pressable onPress={onRemove} hitSlop={8}>
+          <Pressable onPress={onRemove} hitSlop={12}>
             <Text style={styles.removeLabel}>✕</Text>
           </Pressable>
         ) : null}
@@ -70,7 +70,7 @@ export default function CategoryRow({
             keyboardType="decimal-pad"
           />
           <FrequencyToggle value={frequency} onChange={onFrequencyChange} />
-          {showFrequencyHint ? <Text style={styles.hint}>Choisis une fréquence pour valider cette fuite.</Text> : null}
+          {showFrequencyHint ? <Text style={styles.hint}>⚠️ Choisis une fréquence pour valider cette fuite.</Text> : null}
         </View>
       ) : null}
     </View>
@@ -139,6 +139,6 @@ const styles = StyleSheet.create({
   },
   hint: {
     ...typeScale.caption,
-    color: colors.coral,
+    color: colors.ink,
   },
 });

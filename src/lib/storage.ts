@@ -87,6 +87,23 @@ function rowToHabit(row: HabitRow): Habit {
   };
 }
 
+async function insertHabitRow(db: SQLite.SQLiteDatabase, habit: Habit): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO habits (id, emoji, name, category, amount, frequency, createdAt, active)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      habit.id,
+      habit.emoji,
+      habit.name,
+      habit.category,
+      habit.amount,
+      habit.frequency,
+      habit.createdAt,
+      habit.active ? 1 : 0,
+    ]
+  );
+}
+
 export const habitRepository = {
   async getAll(): Promise<Habit[]> {
     const db = await getDatabase();
@@ -96,20 +113,22 @@ export const habitRepository = {
 
   async create(habit: Habit): Promise<void> {
     const db = await getDatabase();
-    await db.runAsync(
-      `INSERT INTO habits (id, emoji, name, category, amount, frequency, createdAt, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        habit.id,
-        habit.emoji,
-        habit.name,
-        habit.category,
-        habit.amount,
-        habit.frequency,
-        habit.createdAt,
-        habit.active ? 1 : 0,
-      ]
-    );
+    await insertHabitRow(db, habit);
+  },
+
+  // Insertion groupée dans une seule transaction : soit toutes les
+  // habitudes sont enregistrées, soit aucune (ex: validation de
+  // l'onboarding avec plusieurs catégories cochées) — évite qu'une
+  // fermeture brutale de l'app en plein milieu ne laisse un sous-
+  // ensemble incohérent de la sélection de l'utilisateur.
+  async createMany(habits: Habit[]): Promise<void> {
+    if (habits.length === 0) return;
+    const db = await getDatabase();
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      for (const habit of habits) {
+        await insertHabitRow(txn, habit);
+      }
+    });
   },
 
   async update(habit: Habit): Promise<void> {

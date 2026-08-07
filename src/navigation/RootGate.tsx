@@ -19,10 +19,19 @@ export default function RootGate() {
 
   useEffect(() => {
     let cancelled = false;
-    profileRepository.get().then((profile) => {
-      if (cancelled) return;
-      setStep(profile ? 'main' : 'createProfile');
-    });
+    profileRepository
+      .get()
+      .then((profile) => {
+        if (cancelled) return;
+        setStep(profile ? 'main' : 'createProfile');
+      })
+      .catch(() => {
+        // Lecture du profil impossible (cas très rare) : on ne bloque pas
+        // l'utilisateur sur un écran de chargement infini, on le laisse
+        // repartir sur la création de profil plutôt que de le bloquer.
+        if (cancelled) return;
+        setStep('createProfile');
+      });
     return () => {
       cancelled = true;
     };
