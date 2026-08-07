@@ -3,17 +3,23 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing, typeScale } from '../../theme';
 
 interface EmptyStateProps {
-  onStartOnboarding: () => void;
+  emoji?: string;
+  title: string;
+  body: string;
+  buttonLabel: string;
+  onPress: () => void;
 }
 
-export default function EmptyState({ onStartOnboarding }: EmptyStateProps) {
+// Générique pour rester réutilisable entre l'écran Accueil (CTA vers
+// l'onboarding) et l'écran Simulation (CTA vers l'onglet Ajouter).
+export default function EmptyState({ emoji = '🕵️', title, body, buttonLabel, onPress }: EmptyStateProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.emoji}>🕵️</Text>
-      <Text style={styles.title}>Aucune fuite recensée</Text>
-      <Text style={styles.body}>Tant que t'as rien coché, ton portefeuille fantôme reste... fantôme.</Text>
-      <Pressable onPress={onStartOnboarding} style={styles.button}>
-        <Text style={styles.buttonLabel}>Traquer mes fuites</Text>
+      <Text style={styles.emoji}>{emoji}</Text>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.body}>{body}</Text>
+      <Pressable onPress={onPress} style={styles.button}>
+        <Text style={styles.buttonLabel}>{buttonLabel}</Text>
       </Pressable>
     </View>
   );

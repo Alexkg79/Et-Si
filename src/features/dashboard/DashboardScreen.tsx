@@ -82,7 +82,12 @@ export default function DashboardScreen() {
       </Text>
 
       {activeHabits.length === 0 ? (
-        <EmptyState onStartOnboarding={() => setShowOnboarding(true)} />
+        <EmptyState
+          title="Aucune fuite recensée"
+          body="Tant que t'as rien coché, ton portefeuille fantôme reste... fantôme."
+          buttonLabel="Traquer mes fuites"
+          onPress={() => setShowOnboarding(true)}
+        />
       ) : (
         <>
           <GhostWalletCard totalValue={totalValue} sinceDateISO={profile.createdAt} />
