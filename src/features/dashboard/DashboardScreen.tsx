@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { OnboardingScreen } from '../onboarding';
+import { EditHabitScreen } from '../habits';
 import { DEFAULT_USER_SETTINGS, Habit, LocalProfile, UserSettings } from '../../lib/models';
 import { habitRepository, profileRepository, settingsRepository } from '../../lib/storage';
 import { yearsSince, computeFutureValue } from '../../lib/simulation';
@@ -15,6 +16,7 @@ import EmptyState from './EmptyState';
 export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [profile, setProfile] = useState<LocalProfile | null>(null);
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS);
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -48,6 +50,19 @@ export default function DashboardScreen() {
     );
   }
 
+  if (editingHabit) {
+    return (
+      <EditHabitScreen
+        habit={editingHabit}
+        onCancel={() => setEditingHabit(null)}
+        onDone={() => {
+          setEditingHabit(null);
+          refresh();
+        }}
+      />
+    );
+  }
+
   if (loading || !profile) {
     return (
       <View style={styles.loading}>
@@ -74,7 +89,7 @@ export default function DashboardScreen() {
 
           <View style={styles.receiptList}>
             {activeHabits.map((habit) => (
-              <HabitReceiptRow key={habit.id} habit={habit} />
+              <HabitReceiptRow key={habit.id} habit={habit} onPress={() => setEditingHabit(habit)} />
             ))}
           </View>
 

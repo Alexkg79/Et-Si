@@ -7,36 +7,19 @@ import { Habit, HabitFrequency } from '../../lib/models';
 import { habitRepository } from '../../lib/storage';
 import { colors, radii, spacing, typeScale } from '../../theme';
 import CategoryRow from './CategoryRow';
-import { CUSTOM_CATEGORY_EMOJI, CUSTOM_CATEGORY_ID, PREDEFINED_CATEGORIES } from './categories';
-
-interface CategoryLine {
-  key: string;
-  categoryId: string;
-  emoji: string;
-  name: string;
-  isCustom: boolean;
-  checked: boolean;
-  amount: string;
-  frequency: HabitFrequency | null;
-}
-
-const INITIAL_LINES: CategoryLine[] = PREDEFINED_CATEGORIES.map((category) => ({
-  key: category.id,
-  categoryId: category.id,
-  emoji: category.emoji,
-  name: category.label,
-  isCustom: false,
-  checked: false,
-  amount: '',
-  frequency: null,
-}));
+import {
+  buildInitialCategoryLines,
+  CategoryLine,
+  CUSTOM_CATEGORY_EMOJI,
+  CUSTOM_CATEGORY_ID,
+} from './categories';
 
 interface OnboardingScreenProps {
   onDone: () => void;
 }
 
 export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
-  const [lines, setLines] = useState<CategoryLine[]>(INITIAL_LINES);
+  const [lines, setLines] = useState<CategoryLine[]>(buildInitialCategoryLines);
   const [saving, setSaving] = useState(false);
 
   const updateLine = (key: string, changes: Partial<CategoryLine>) => {
